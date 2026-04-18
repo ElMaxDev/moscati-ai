@@ -118,51 +118,63 @@ RESPONDE EN ESTE FORMATO JSON EXACTO (sin \`\`\`json, solo el JSON puro):
 ${targetSchema}`;
 
   let text = '';
+  
   try {
-    // LLAMADA A OLLAMA (MODELO LOCAL)
-    const response = await fetch('http://localhost:11434/api/generate', {
+    // INTENTO 1: OLLAMA (MODELO LOCAL PRIVADO)
+    const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama3', // El modelo local que usaremos
+        model: 'llama3', 
         prompt: prompt,
         stream: false,
-        format: 'json' // Obliga a Llama3 a responder en JSON válido
+        format: 'json' 
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Ollama Error: ${response.status}`);
+    if (ollamaResponse.ok) {
+      const result = await ollamaResponse.json();
+      text = result.response;
+      console.log('✅ Nota estructurada exitosamente vía Llama 3 (Ollama Local)');
+    } else {
+      throw new Error(`Ollama retornó status: ${ollamaResponse.status}`);
     }
 
-    const result = await response.json();
-    text = result.response;
+  } catch (ollamaError) {
+    console.warn('⚠️ Ollama no disponible localmente. Intentando con Google Gemini Cloud...');
     
-  } catch (error: any) {
-    console.error('Ollama API Error:', error);
-    console.warn('⚠️ ERROR DE CONEXIÓN CON OLLAMA. USANDO DATOS SIMULADOS.');
-    // Fallback si Ollama no está corriendo o no tiene el modelo
-    text = JSON.stringify({
-      subjective: {
-        chief_complaint: transcription.substring(0, 50) + '...',
-        history_present_illness: "Generado automáticamente por sistema de respaldo debido a error en IA Local.",
-        review_of_systems: "No referido",
-        allergies_mentioned: "No referidas"
-      },
-      objective: {
-        vital_signs_mentioned: "No referidos",
-        physical_exam: "Pendiente de explorar"
-      },
-      assessment: {
-        primary_diagnosis_natural_language: "Diagnóstico en evaluación (Modo Offline)",
-        secondary_diagnoses_natural_language: [],
-        clinical_reasoning: "El sistema de IA local (Ollama) no está respondiendo."
-      },
-      plan: {
-        medications: [],
-        follow_up: "Verificar conexión de Ollama en localhost:11434"
-      }
-    });
+    // INTENTO 2: GOOGLE GEMINI (NUBE)
+    try {
+      const result = await model.generateContent(prompt);
+      text = result.response.text();
+      console.log('✅ Nota estructurada exitosamente vía Google Gemini');
+    } catch (geminiError: any) {
+      console.error('Gemini API Error:', geminiError);
+      console.warn('⚠️ GOOGLE GEMINI FALLÓ (Posible límite de cuota 429). ACTIVANDO MODO SIMULADO DE RESPALDO.');
+      
+      // INTENTO 3: FALLBACK SIMULADO
+      text = JSON.stringify({
+        subjective: {
+          chief_complaint: transcription.substring(0, 50) + '...',
+          history_present_illness: "Generado automáticamente por sistema de respaldo debido a errores en servidores de IA.",
+          review_of_systems: "No referido",
+          allergies_mentioned: "No referidas"
+        },
+        objective: {
+          vital_signs_mentioned: "No referidos",
+          physical_exam: "Pendiente de explorar"
+        },
+        assessment: {
+          primary_diagnosis_natural_language: "Diagnóstico en evaluación (Modo Offline)",
+          secondary_diagnoses_natural_language: [],
+          clinical_reasoning: "Múltiples fallas en Ollama y Gemini. Esta es una nota de respaldo temporal."
+        },
+        plan: {
+          medications: [],
+          follow_up: "Reevaluar conexión a internet o cuota de API."
+        }
+      });
+    }
   }
 
   // Limpiar markdown si Llama3 lo envuelve por accidente
