@@ -37,7 +37,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-Hackathon/moscati-ai/node_modules/
-Hackathon/moscati-ai/.next/
-Hackathon/moscati-ai/node_modules/
-Hackathon/moscati-ai/.next/
+Hackathon/auralis-health/node_modules/
+Hackathon/auralis-health/.next/
